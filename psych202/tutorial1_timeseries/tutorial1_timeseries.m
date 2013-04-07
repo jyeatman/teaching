@@ -1,4 +1,4 @@
-%% fMRI time series
+%% Examining fMRI time series
 %
 % Teaching objectives:
 % 
@@ -15,7 +15,13 @@
 % steps that take raw fMRI data to the figures of a heatmap on the brain
 % that you see in papers
 %
+% Author:  J. Yeatman
+% Date:    April, 2013
+% Tutorial duration (approximate):  1 hour
 %
+
+%%  Functional MRI Data
+
 % In an fMRI experiment sequential brain volumes are collected while the
 % stimuli and task are manipulatd. Each brain volume is a 3 dimensional
 % image and each pixel in the image is called a voxel. Here is a video of a
@@ -24,6 +30,7 @@
 
 % Load the data
 load data
+
 % Open a figure window
 figure; colormap('gray')
 % Make a movie of slice number 10
@@ -31,19 +38,35 @@ for ii = 1:size(data,4)
     % Show the image of this slice during volume number ii
     imagesc(squeeze(data(:,:,10,ii))); 
     % pause for .2 seconds
-    drawnow; pause(.2);
+    drawnow; pause(0.05);
 end
 
-% While it may not look like there is substantial change in pixel intensity
-% over time if we extract the time series from a voxel in the visual cortex
-% We can see that there is fluctuation in the signal over time. This is due
-% to the blood oxygen level dependent contrast in these images
+% The intensity variation of the BOLD signal in an fMRI experiment is
+% pretty small, usually less than one percent.  The noise variation is
+% about the same amount, so it is difficult to see the BOLD signal in a
+% simple movie like this one.
 
-% Grab the time series from a voxel (x=65, y=45,z=10). The functions
-% squeeze puts this data into a vector
+%% Analyzing the time series
+% To detect a reliable change in the BOLD signal, we use signal processing
+% and statistics to interpret the BOLD time series.  The key idea is to
+% remove the factors that are certainly noise, and to look for signals that
+% are correlated with the stimulus manipulations.
+
+%
+% change in pixel intensity over time if we extract the time series from a
+% voxel in the visual cortex We can see that there is fluctuation in the
+% signal over time. This is due to the blood oxygen level dependent
+% contrast in these images
+
+% Why this location?  Do we know it is a good one for this experiment?  It
+% looks to me to be in primary visual cortex.
+%
+% Extract the time series from a voxel (x=65, y=45,z=10). 
+% (The function squeeze converts the data into a vector)
 ts1 = squeeze(data(65,45,10,:));
-% Plot the time series
-plot(ts1)
+
+% Plot the time series for this single voxel.
+figure; plot(ts1)
 
 % Questions:
 %
@@ -69,14 +92,24 @@ events_scramble = [4 32 52 69 77 104];
 
 % First we allocate a matrix full of zeros
 X = zeros(114,2); 
-% In the first column denote when words were presented.
+
+% In the first column place a one at the times when words were presented.
 X(events_words,1) = 1;
-% In the second column denote when scrambled words were presented
+
+% In the second column place a one at the times when scrambled words were
+% presented
 X(events_scramble,2) = 1;
 
-% Show an image of the design matrix
+figure;
+mx = max(ts1(:)); mn = min(ts1(:));
+subplot(2,1,1),plot( (mx-mn)*X(:,1) + mn ,'r-'); hold on; plot(ts1)
+subplot(2,1,2),plot( (mx-mn)*X(:,2) + mn ,'k-'); hold on; plot(ts1)
+
+
+%% Show an image of the design matrix
 figure; imagesc(X); colormap('gray'); ylabel('Volume Number'); 
 set(gca, 'xtick',[1 2],'xticklabel', {'word' 'scramble'});
+
 % And plot what the time series would look like
 figure; hold
 plot(X(:,1),'-r')
@@ -84,7 +117,7 @@ plot(X(:,2),'-b')
 legend('words', 'scramble')
 xlabel('Volume Number'); ylabel('Signal')
 
-% There is one problem with this model of the time series. When a neural
+%% There is one problem with this model of the time series. When a neural
 % event occurs it does not cause a rapid peak in the BOLD signal, but
 % instead there is a slow response that evolves over time
 %
@@ -97,7 +130,7 @@ xlabel('Volume Number'); ylabel('Signal')
 load hrf.mat
 plot(hrf); xlabel('Scans (2 seconds)');
 
-% Question:
+%% Question:
 %
 % 3. What does this HRF suggest about the type of cognitive questions that
 % can be adressed with fMRI? For example would it be feasible to measure
@@ -121,7 +154,7 @@ plot(X(:,1),'-r')
 plot(X(:,2),'-b')
 legend('words', 'scramble')
 
-% There is one more step before we fit a linear model to predict our
+%% There is one more step before we fit a linear model to predict our
 % measured BOLD signal based on the regressors we created around our
 % experimental design. The units of the measured signal are arbitrary. We
 % are interested in predicting changes in the signal over time but we do
@@ -130,11 +163,15 @@ legend('words', 'scramble')
 % of ones to the design matrix before fitting the linear model. These two
 % aproaches are equivalent
 
+
+% (Though usually demeaning means pulling out a term that changes linearly
+% or even quadratically over time) - BW
 ts1_demeaned = ts1 - mean(ts1);
 
 % We can now fit our linear model in which we scale each column of the
 % design matrix to best fit our measured signal. 
 [B, B_ci] = regress(ts1_demeaned, X);
+% B = pinv(X)*ts1_demeaned
 
 % The values in B are our beta weights. As with any regression analysis
 % these are the weights that scale our regressors to best predict the
@@ -144,7 +181,7 @@ figure; hold
 plot(ts1_predicted,'-r')
 plot(ts1_demeaned,'-b')
 
-% Now we can loop over all the voxels in this slice (10) and fit this model to
+%% Now we can loop over all the voxels in this slice (10) and fit this model to
 % each voxel
 
 % First loop over the first dimension (the rows)
@@ -170,3 +207,4 @@ for ii = 1:size(data,1)
     end
 end
 
+%% End
