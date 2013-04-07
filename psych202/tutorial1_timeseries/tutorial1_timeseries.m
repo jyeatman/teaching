@@ -15,80 +15,138 @@
 % steps that take raw fMRI data to the figures of a heatmap on the brain
 % that you see in papers
 %
-% Author:  J. Yeatman
+% Author:  J. Yeatman and Brian Wandell
 % Date:    April, 2013
 % Tutorial duration (approximate):  1 hour
 %
 
 %%  Functional MRI Data
 
-% In an fMRI experiment sequential brain volumes are collected while the
-% stimuli and task are manipulatd. Each brain volume is a 3 dimensional
-% image and each pixel in the image is called a voxel. Here is a video of a
-% single slice of the brain over the course of an fMRI experiment where the
-% subject was presented either words or scrambled words.
+% In an fMRI experiment sequential brain volumes are collected every few
+% seconds while the stimuli and the subject peforms a task. Each brain
+% volume is a 3 dimensional image. Each sample in the volume is called a
+% voxel. 
 
-% Load the data
+% The data we load is a series of volumes of brain measures over the course
+% of an fMRI
 load data
 
-% Open a figure window
+% In this experiment, the subject was watching a series of pictures of
+% either either words or scrambled words. These changed over time in a way
+% we describe below.
 figure; colormap('gray')
-% Make a movie of slice number 10
+
+% We will examine one slice from the volume over time. As the movie
+% clarifies, the intensity variation of the BOLD signal in an fMRI
+% experiment is pretty small, usually less than one percent.  The noise
+% variation is about the same amount. Consequently, it is difficult to see
+% the BOLD signal in a simple movie like this one. Oddly, the main point of
+% the movie is to see how little there is to see!
 for ii = 1:size(data,4)
     % Show the image of this slice during volume number ii
     imagesc(squeeze(data(:,:,10,ii))); 
-    % pause for .2 seconds
+    % pause for 50 milliseconds
     drawnow; pause(0.05);
 end
 
-% The intensity variation of the BOLD signal in an fMRI experiment is
-% pretty small, usually less than one percent.  The noise variation is
-% about the same amount, so it is difficult to see the BOLD signal in a
-% simple movie like this one.
-
 %% Analyzing the time series
-% To detect a reliable change in the BOLD signal, we use signal processing
-% and statistics to interpret the BOLD time series.  The key idea is to
-% remove the factors that are certainly noise, and to look for signals that
-% are correlated with the stimulus manipulations.
+% Because the signals are small, we have to perform various signal
+% processing operations and statistics to identify and measure responses.
 
+% We try to remove aspects of the signal that are unrelated to the
+% stimulus-driven responses, and to look for signals that are correlated
+% with the stimulus manipulations.  Loosely, we call the parts of the time
+% series that are unconnected to our experiment 'noise'.  
 %
-% change in pixel intensity over time if we extract the time series from a
-% voxel in the visual cortex We can see that there is fluctuation in the
-% signal over time. This is due to the blood oxygen level dependent
-% contrast in these images
+% Some of the components of the time series really are noise - unwanted
+% instrumental artifacts. BUt not all the unwanted components are noise.
+% They can be simply signals that are not of interest to us, such as
+% signals arising from the beating heart.
 
-% Why this location?  Do we know it is a good one for this experiment?  It
-% looks to me to be in primary visual cortex.
-%
+% BW - Why this location?  Do we know it is a good one for this experiment?
+% It looks to me to be in primary visual cortex.
+
 % Extract the time series from a voxel (x=65, y=45,z=10). 
-% (The function squeeze converts the data into a vector)
+% (The function squeeze converts the 4D data, (x,y,z,t) into a vector)
 ts1 = squeeze(data(65,45,10,:));
 
+nTR = size(data,4);   % Number of brain volumes at the repetition rate
+
 % Plot the time series for this single voxel.
-figure; plot(ts1)
+figure; 
+plot(1:nTR,ts1)
+xlabel('TR')
+ylabel('Scanner digital value')
 
 % Questions:
 %
-% 1. What are the units of the two axes?
-% 2. Replot the time series with the x axis labeled in seconds. The 
-% function xlabel(' ') will add a label to the axis
+% The horizontal axis represents which volume was read from the scanner.
+% The temporal separation between volume acquisitions is called the
+% repetition time (TR).  Suppose the TR is 2.5 sec. Replot the time series
+% with the x axis labeled in seconds.
 
-%% 
-% These are the times when each event started. Each event lasts
-% 12 seconds and there is a blank screen in between events. The timing is
-% with respect to the fMRI volume number. For example 4 means that the
-% event started at during the acquisition of volume number 4.
+%% Convert the raw scanner numbers to a percent contrast
+
+% The digital values coming from the scanner have no physical significance.
+% digital values from some regions are a little higher than others for
+% instrumental reasons, say because the coil is more sensitive to the
+% surface of the brain than the middle.  Other uninteresting reasons also
+% give rise to these differences.
+
+% It is common, therefore, to express the time series as a percent
+% modulation around the mean signal. This moves us towards comparing more
+% similar variations - though even this move is not really enough.
+
+meanTS = mean(ts1(:));
+ts1 = 100* ((ts1 - meanTS)/ meanTS);
+
+% Plot the modulation
+figure; 
+plot(1:nTR,ts1)
+xlabel('TR')
+ylabel('Percent modulation of BOLD signal')
+grid on
+
+% This voxel swings up and down by about 2-3 percent.  This is fairly
+% typical of the size modulation one measures in visual cortex. 
+
+%% The times when each event started.
+
+% To analykze the time series with respect to the stimulus, we need to
+% specify the stimulus changes over time. Each event lasts 12 seconds and
+% there is a blank screen in between events. The timing is with respect to
+% the fMRI volume number. For example 4 means that the event started at
+% during the acquisition of volume number 4.  So we create variables that
+% specifies when the different stimulus events happen.
 events_words    = [12 21 41 61 86 95];
 events_scramble = [4 32 52 69 77 104];
 
-% Now that we have our event times expressed in terms of scan number we can
-% make an ideal time series that would reflect the expected response
-% profiles for a voxel that responds to words or scrambled words. We will
-% express this as a matrix with 2 columns, column 1 containing the
-% predicted time series for words and column 2 containing the predicted time
-% series for scrambled words. There will be 114 rows in the matrix because
-% there were 114 volumes collected in the fMRI experiment.
+% Here is a graph showing the time series and the points in time when the
+% stimulus (a word or a scrambled word) was presented
+figure;
+subplot(2,1,1), 
+plot(ts1); set(gca,'xtick',events_words)
+grid on
+
+subplot(2,1,2),
+plot(ts1); set(gca,'xtick',events_scramble)
+grid on
+
+%% Show an image of the design matrix
+
+% Suppose that every time a stimulus appears, we generate a response at
+% this voxel. We can make a prediction about the time series, in which
+% there is a little response every time a word or scrambled word appears.
+
+% We can express the predicted response by building a "design matrix" that
+% specifies the expected responses.  It is called a design matrix because
+% it captures the experimental design.
+
+% The design matrix will have  2 columns, column 1 containing the predicted
+% time series for words and column 2 containing the predicted time series
+% for scrambled words. There will be 114 rows in the matrix because there
+% were 114 volumes collected in the fMRI experiment.
+
 
 % First we allocate a matrix full of zeros
 X = zeros(114,2); 
@@ -100,13 +158,6 @@ X(events_words,1) = 1;
 % presented
 X(events_scramble,2) = 1;
 
-figure;
-mx = max(ts1(:)); mn = min(ts1(:));
-subplot(2,1,1),plot( (mx-mn)*X(:,1) + mn ,'r-'); hold on; plot(ts1)
-subplot(2,1,2),plot( (mx-mn)*X(:,2) + mn ,'k-'); hold on; plot(ts1)
-
-
-%% Show an image of the design matrix
 figure; imagesc(X); colormap('gray'); ylabel('Volume Number'); 
 set(gca, 'xtick',[1 2],'xticklabel', {'word' 'scramble'});
 
