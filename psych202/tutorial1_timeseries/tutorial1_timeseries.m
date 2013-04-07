@@ -168,9 +168,10 @@ plot(X(:,2),'-b')
 legend('words', 'scramble')
 xlabel('Volume Number'); ylabel('Signal')
 
-%% There is one problem with this model of the time series. When a neural
-% event occurs it does not cause a rapid peak in the BOLD signal, but
-% instead there is a slow response that evolves over time
+%% The hemodynamic response function
+
+% When a neural event occurs it does not cause a rapid peak in the BOLD
+% signal, but instead there is a slow response that evolves over time
 %
 % We know roughly how the vascular response measured by BOLD evolves over
 % time. This means that when there is an event that stimulates a brief neural
