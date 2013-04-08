@@ -32,10 +32,15 @@ X(E1,1) = 1;
 X(E2,2) = 1;
 
 % Build the design matrix
+% The convolution isn't quite doing what I intended.  The HRF is time
+% shifted.  Fix this.
 dMatrix = zeros(nTR,nStimuli);
 dMatrix(:,1) = conv2(X(:,1),hrf,'same');
 dMatrix(:,2) = conv2(X(:,2),hrf,'same');
-figure; imagesc(dMatrix)
+figure; imagesc(dMatrix ); colormap(hot)
+
+figure; plot(dMatrix(:,1)); set(gca,'xtick',E1);
+grid on
 
 %% Simulate the time series
 beta = [1, -0.3]';
@@ -46,9 +51,10 @@ tsSimulated = dMatrix*beta;
 
 % Figure the Signal to noise is about 1:1
 mx = max(abs(tsSimulated(:)));
-SNR = 2;
+SNR = 20;
 tsSimulated = tsSimulated + (mx/SNR)*randn(size(tsSimulated));
 plot(tsSimulated)
+set(gca,'xtick',sort([E1 E2]))
 grid on;
 xlabel('Time (sec)')
 ylabel('BOLD modulation (%)')
